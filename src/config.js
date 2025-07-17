@@ -9,11 +9,7 @@ export const config = {
 
   // API設定
   api: {
-    baseURL: process.env.VUE_APP_API_BASE_URL || (
-      process.env.NODE_ENV === 'production' 
-        ? 'https://your-api-gateway-url.execute-api.ap-northeast-1.amazonaws.com/prod'
-        : 'http://localhost:3000'
-    ),
+    baseURL: process.env.VUE_APP_API_BASE_URL || 'https://wiki2.h-akira.net',
     timeout: 10000,
     withCredentials: true, // Cognitoクッキー認証のため
     endpoints: {
