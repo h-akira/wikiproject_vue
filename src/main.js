@@ -30,14 +30,14 @@ axios.interceptors.response.use(
     if (error.response && error.response.status === 401) {
       console.log('Authentication error, clearing auth state and redirecting to login')
       store.dispatch('auth/logout')
-      router.push(config.auth.defaultRedirectAfterLogout)
+      router.push('/login')
     }
     return Promise.reject(error)
   }
 )
 
 // Check authentication status on app start
-store.dispatch('auth/checkAuth')
+store.dispatch('auth/checkAuthStatus')
 
 app.use(store)
 app.use(router)

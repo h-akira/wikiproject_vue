@@ -1,11 +1,18 @@
 import axios from 'axios'
 import { config } from '@/config.js'
 
+// Axiosインスタンス設定
+const api = axios.create({
+  baseURL: config.api.baseURL,
+  withCredentials: true // Cookieを含める
+})
+
 export default {
   namespaced: true,
   state: {
     user: null,
-    isAuthenticated: false
+    isAuthenticated: false,
+    loading: false
   },
   mutations: {
     SET_USER(state, user) {
@@ -15,62 +22,39 @@ export default {
     LOGOUT(state) {
       state.user = null
       state.isAuthenticated = false
+    },
+    SET_LOADING(state, loading) {
+      state.loading = loading
     }
   },
   actions: {
-    // Cognitoマネージドログインページの認証URLs取得
-    async getAuthUrls() {
-      try {
-        // 環境変数から直接Cognito URLを取得
-        if (!config.auth.cognitoLoginUrl || !config.auth.cognitoSignupUrl) {
-          throw new Error('Cognito URL設定が不完全です')
-        }
-        
-        return { 
-          success: true, 
-          data: {
-            login_url: config.auth.cognitoLoginUrl,
-            signup_url: config.auth.cognitoSignupUrl
-          }
-        }
-      } catch (error) {
-        return { 
-          success: false, 
-          message: error.message || '認証URLの取得に失敗しました' 
-        }
-      }
-    },
-
     // 認証コードをトークンに交換
-    async exchangeCodeForToken(_, code) {
-      const apiUrl = config.api.baseURL + config.api.endpoints.auth.tokenExchange
-      console.log('🌐 API呼び出し:', {
-        url: apiUrl,
-        baseURL: config.api.baseURL,
-        endpoint: config.api.endpoints.auth.tokenExchange,
-        code: code,
-        withCredentials: config.api.withCredentials
-      })
+    async exchangeCodeForToken({ commit }, code) {
+      console.log('🔄 認証コード交換開始:', code)
+      console.log('📡 API_BASE_URL:', config.api.baseURL)
+      console.log('🎯 tokenExchange endpoint:', config.api.endpoints.tokenExchange)
+      console.log('🔗 完全なURL:', config.api.baseURL + config.api.endpoints.tokenExchange)
       
       try {
-        const response = await axios.post(config.api.endpoints.auth.tokenExchange, { code })
+        commit('SET_LOADING', true)
         
-        console.log('🌐 API レスポンス:', response.data)
-        
-        if (response.data.message === 'success') {
-          // 認証成功後、ユーザー情報を取得
-          console.log('✅ 認証成功、ユーザー情報を取得中...')
-          await this.dispatch('auth/checkAuthStatus')
-          return { success: true }
-        } else {
-          console.log('❌ 認証失敗 - レスポンス:', response.data)
-          return { 
-            success: false, 
-            message: '認証に失敗しました' 
-          }
+        const payload = { 
+          code: code
         }
+        console.log('📤 送信データ:', payload)
+        
+        console.log('🚀 POSTリクエスト送信中...')
+        const response = await api.post(config.api.endpoints.tokenExchange, payload)
+        
+        console.log('✅ トークン交換成功:', response.data)
+        console.log('📊 レスポンスステータス:', response.status)
+        
+        // 認証状態を更新
+        await this.dispatch('auth/checkAuthStatus')
+        
+        return { success: true, data: response.data }
       } catch (error) {
-        console.error('❌ API呼び出しエラー:', {
+        console.error('❌ トークン交換エラー詳細:', {
           message: error.message,
           status: error.response?.status,
           statusText: error.response?.statusText,
@@ -78,57 +62,87 @@ export default {
           config: {
             url: error.config?.url,
             method: error.config?.method,
-            baseURL: error.config?.baseURL
+            data: error.config?.data
           }
         })
-        
         return { 
           success: false, 
-          message: error.response?.data?.message || 'API呼び出しに失敗しました: ' + error.message
+          error: error.response?.data?.error || error.message || 'トークン交換に失敗しました' 
         }
+      } finally {
+        commit('SET_LOADING', false)
       }
     },
-    
-    // 認証状態確認（クッキーベース）
+
+    // 認証状態をチェック
     async checkAuthStatus({ commit }) {
-      console.log('🔍 認証状態確認中...')
+      console.log('🔍 認証状態チェック開始')
       
       try {
-        const response = await axios.get(config.api.endpoints.auth.status)
+        commit('SET_LOADING', true)
+        
+        const response = await api.get(config.api.endpoints.authStatus)
         
         console.log('🔍 認証状態レスポンス:', response.data)
         
         if (response.data.authenticated) {
           console.log('✅ 認証済み - ユーザー情報:', response.data.user)
           commit('SET_USER', response.data.user)
-          return { success: true, authenticated: true }
         } else {
           console.log('❌ 未認証')
           commit('LOGOUT')
-          return { success: true, authenticated: false }
         }
+        
+        return response.data
       } catch (error) {
-        console.error('❌ 認証状態確認エラー:', error)
+        console.error('❌ 認証状態チェックエラー:', error)
         commit('LOGOUT')
-        return { success: false, authenticated: false }
+        return { authenticated: false, user: null }
+      } finally {
+        commit('SET_LOADING', false)
       }
     },
 
     // ログアウト
     async logout({ commit }) {
+      console.log('🚪 ログアウト開始')
+      
       try {
-        await axios.post(config.api.endpoints.auth.logout)
-        commit('LOGOUT')
-        return { success: true }
+        commit('SET_LOADING', true)
+        
+        // バックエンドでCognitoサインアウト & Cookie削除
+        await api.post(config.api.endpoints.logout)
+        
+        console.log('✅ ログアウト完了')
+        
       } catch (error) {
-        // ログアウトは失敗してもローカル状態をクリア
+        console.error('❌ ログアウトエラー:', error)
+      } finally {
+        // ローカル状態をクリア（成功・失敗関係なく）
         commit('LOGOUT')
-        return { success: false, message: 'ログアウト処理でエラーが発生しました' }
+        commit('SET_LOADING', false)
+        
+        // ホームページにリダイレクト
+        console.log('🏠 ホームページにリダイレクト')
+        window.location.href = '/'
       }
+    },
+
+    // Cognitoログインページにリダイレクト
+    redirectToLogin() {
+      console.log('🔐 Cognitoログインページにリダイレクト')
+      window.location.href = config.cognito.loginURL
+    },
+
+    // Cognitoサインアップページにリダイレクト
+    redirectToSignup() {
+      console.log('📝 Cognitoサインアップページにリダイレクト')
+      window.location.href = config.cognito.signupURL
     }
   },
   getters: {
     isAuthenticated: state => state.isAuthenticated,
-    user: state => state.user
+    user: state => state.user,
+    loading: state => state.loading
   }
 }

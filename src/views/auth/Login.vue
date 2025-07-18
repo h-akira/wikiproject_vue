@@ -7,59 +7,44 @@
             <div class="card-content">
               <h1 class="title has-text-centered">ログイン</h1>
               
-              <!-- 認証コード処理中の表示 -->
-              <div v-if="processing" class="has-text-centered">
-                <div class="loading-spinner">
-                  <i class="fas fa-spinner fa-spin fa-2x"></i>
-                </div>
-                <p class="mt-4">認証処理中...</p>
+              <div v-if="loading || processing" class="has-text-centered">
+                <div class="loader"></div>
+                <p class="mt-4">{{ processing ? '認証処理中...' : '読み込み中...' }}</p>
               </div>
-
-              <!-- エラーメッセージ -->
-              <div v-if="errorMessage" class="notification is-danger">
-                {{ errorMessage }}
-              </div>
-
-              <!-- ログインボタン -->
-              <div v-if="!processing" class="has-text-centered">
-                <p class="mb-4">Cognitoマネージドログインページを使用してログインします。</p>
-                
+              
+              <div v-else>
                 <div class="field">
                   <div class="control">
                     <button 
-                      @click="handleLogin"
                       class="button is-primary is-fullwidth is-large"
-                      :class="{ 'is-loading': loading }"
+                      @click="handleLogin"
                       :disabled="loading"
                     >
                       <span class="icon">
-                        <i class="fab fa-aws"></i>
+                        <i class="fas fa-sign-in-alt"></i>
                       </span>
-                      <span>Cognitoでログイン</span>
+                      <span>ログイン</span>
                     </button>
                   </div>
                 </div>
-
-                <div class="field">
+                
+                <div class="field mt-4">
                   <div class="control">
                     <button 
+                      class="button is-info is-fullwidth"
                       @click="handleSignup"
-                      class="button is-light is-fullwidth"
-                      :class="{ 'is-loading': loading }"
                       :disabled="loading"
                     >
                       <span class="icon">
                         <i class="fas fa-user-plus"></i>
                       </span>
-                      <span>新規アカウント作成</span>
+                      <span>アカウント作成</span>
                     </button>
                   </div>
                 </div>
-
-                <div class="mt-4">
-                  <p class="is-size-7 has-text-grey">
-                    ※ 外部のCognito認証画面が開きます
-                  </p>
+                
+                <div v-if="errorMessage" class="notification is-danger mt-4">
+                  {{ errorMessage }}
                 </div>
               </div>
             </div>
@@ -71,19 +56,18 @@
 </template>
 
 <script>
-import { mapActions, mapGetters } from 'vuex'
+import { mapGetters, mapActions } from 'vuex'
 
 export default {
   name: 'LoginPage',
   data() {
     return {
-      loading: false,
       processing: false,
       errorMessage: ''
     }
   },
   computed: {
-    ...mapGetters('auth', ['isAuthenticated'])
+    ...mapGetters('auth', ['isAuthenticated', 'loading'])
   },
   watch: {
     isAuthenticated(newVal) {
@@ -99,86 +83,54 @@ export default {
       return
     }
 
-    // URLパラメータから認証コードを取得
+    // URLパラメータから認証コードをチェック
     const urlParams = new URLSearchParams(window.location.search)
-    const code = urlParams.get('code')
+    const authCode = urlParams.get('code')
     const error = urlParams.get('error')
 
     if (error) {
       this.errorMessage = '認証がキャンセルされました'
-      // URLをクリーンアップ
       this.cleanUrl()
-    } else if (code) {
-      // 認証コードがある場合は処理
-      await this.processAuthCode(code)
+    } else if (authCode && !this.isAuthenticated) {
+      console.log('🔑 認証コード検出:', authCode)
+      console.log('🔄 トークン交換を開始')
+      
+      await this.processAuthCode(authCode)
+    } else {
+      // 通常の認証状態チェック
+      await this.checkAuthStatus()
     }
   },
   methods: {
-    ...mapActions('auth', ['getAuthUrls', 'exchangeCodeForToken']),
+    ...mapActions('auth', ['exchangeCodeForToken', 'checkAuthStatus', 'redirectToLogin', 'redirectToSignup']),
 
     async handleLogin() {
-      this.loading = true
-      this.errorMessage = ''
-
-      try {
-        const result = await this.getAuthUrls()
-        
-        if (result.success) {
-          // Cognitoログインページにリダイレクト
-          window.location.href = result.data.login_url
-        } else {
-          this.errorMessage = result.message
-        }
-      } catch (error) {
-        this.errorMessage = 'ログインURLの取得に失敗しました'
-      } finally {
-        this.loading = false
-      }
+      this.redirectToLogin()
     },
 
     async handleSignup() {
-      this.loading = true
-      this.errorMessage = ''
-
-      try {
-        const result = await this.getAuthUrls()
-        
-        if (result.success) {
-          // Cognitoサインアップページにリダイレクト
-          window.location.href = result.data.signup_url
-        } else {
-          this.errorMessage = result.message
-        }
-      } catch (error) {
-        this.errorMessage = 'サインアップURLの取得に失敗しました'
-      } finally {
-        this.loading = false
-      }
+      this.redirectToSignup()
     },
 
     async processAuthCode(code) {
       this.processing = true
       this.errorMessage = ''
 
-      console.log('🔍 認証コード処理開始:', code)
-
       try {
         const result = await this.exchangeCodeForToken(code)
         
-        console.log('🔍 トークン交換結果:', result)
-        
         if (result.success) {
-          // URLをクリーンアップしてからホームにリダイレクト
-          console.log('✅ 認証成功、ホームにリダイレクト')
+          console.log('✅ 認証成功！URLをクリーンアップ')
+          // URLから認証コードを削除（履歴を汚さないようにreplace）
           this.cleanUrl()
           this.$router.push('/')
         } else {
-          console.log('❌ 認証失敗:', result.message)
-          this.errorMessage = result.message
+          console.error('❌ 認証失敗:', result.error)
+          this.errorMessage = result.error
           this.cleanUrl()
         }
       } catch (error) {
-        console.error('❌ 認証処理エラー:', error)
+        console.error('💥 認証処理エラー:', error)
         this.errorMessage = '認証処理に失敗しました'
         this.cleanUrl()
       } finally {
@@ -188,9 +140,7 @@ export default {
 
     cleanUrl() {
       // URLパラメータを削除してクリーンなURLにする
-      const url = new URL(window.location)
-      url.search = ''
-      window.history.replaceState({}, document.title, url.toString())
+      window.history.replaceState({}, '', window.location.pathname)
     }
   }
 }
@@ -208,10 +158,6 @@ export default {
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
 }
 
-.loading-spinner {
-  color: #3273dc;
-}
-
 .button.is-large {
   padding: 1rem 1.5rem;
   font-size: 1.1rem;
@@ -219,5 +165,20 @@ export default {
 
 .button .icon {
   margin-right: 0.5rem;
+}
+
+.loader {
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #3498db;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  animation: spin 2s linear infinite;
+  margin: 0 auto;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 </style>

@@ -7,31 +7,11 @@
             <div class="card-content">
               <h1 class="title has-text-centered">アカウント作成</h1>
               
-              <div class="has-text-centered" v-if="loading">
+              <div class="has-text-centered">
                 <p class="mb-4">
                   Cognito サインアップページに移動しています...
                 </p>
                 <div class="loader"></div>
-              </div>
-              
-              <div class="has-text-centered" v-if="error">
-                <p class="mb-4 has-text-danger">
-                  {{ error }}
-                </p>
-                
-                <div class="field">
-                  <div class="control">
-                    <router-link 
-                      to="/login" 
-                      class="button is-primary is-fullwidth is-large"
-                    >
-                      <span class="icon">
-                        <i class="fas fa-arrow-left"></i>
-                      </span>
-                      <span>ログインページへ</span>
-                    </router-link>
-                  </div>
-                </div>
               </div>
             </div>
           </div>
@@ -46,34 +26,12 @@ import { mapActions } from 'vuex'
 
 export default {
   name: 'SignupPage',
-  data() {
-    return {
-      loading: true,
-      error: null
-    }
-  },
   async mounted() {
-    await this.redirectToSignup()
+    // 直接Cognitoサインアップページにリダイレクト
+    this.redirectToSignup()
   },
   methods: {
-    ...mapActions('auth', ['getAuthUrls']),
-    
-    async redirectToSignup() {
-      try {
-        const result = await this.getAuthUrls()
-        
-        if (result.success && result.data.signup_url) {
-          // Cognito サインアップページにリダイレクト
-          window.location.href = result.data.signup_url
-        } else {
-          this.error = 'サインアップページの取得に失敗しました'
-          this.loading = false
-        }
-      } catch (error) {
-        this.error = 'エラーが発生しました。ログインページからお試しください。'
-        this.loading = false
-      }
-    }
+    ...mapActions('auth', ['redirectToSignup'])
   }
 }
 </script>
@@ -88,15 +46,6 @@ export default {
 
 .card {
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
-}
-
-.button.is-large {
-  padding: 1rem 1.5rem;
-  font-size: 1.1rem;
-}
-
-.button .icon {
-  margin-right: 0.5rem;
 }
 
 .loader {

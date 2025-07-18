@@ -14,12 +14,9 @@ export const config = {
     withCredentials: true, // Cognitoクッキー認証のため
     endpoints: {
       // 認証関連
-      auth: {
-        urls: '/api/auth/urls',
-        tokenExchange: '/api/auth/token',
-        status: '/api/auth/status',
-        logout: '/api/auth/logout'
-      },
+      tokenExchange: '/api/auth/token',
+      authStatus: '/api/auth/status',
+      logout: '/api/auth/logout',
       // Wiki記事関連
       wiki: {
         articles: '/api/wiki/articles',
@@ -37,15 +34,28 @@ export const config = {
     }
   },
 
+  // Cognito設定
+  cognito: {
+    // CognitoマネージドログインページのURL（環境変数から取得）
+    loginURL: (() => {
+      const loginURL = process.env.VUE_APP_COGNITO_LOGIN_URL;
+      if (!loginURL) {
+        throw new Error('環境変数 VUE_APP_COGNITO_LOGIN_URL が設定されていません');
+      }
+      return loginURL;
+    })(),
+    // CognitoマネージドサインアップページのURL（環境変数から取得）
+    signupURL: (() => {
+      const signupURL = process.env.VUE_APP_COGNITO_SIGNUP_URL;
+      if (!signupURL) {
+        throw new Error('環境変数 VUE_APP_COGNITO_SIGNUP_URL が設定されていません');
+      }
+      return signupURL;
+    })()
+  },
+
   // 認証設定
   auth: {
-    // 認証方式: Cognitoマネージドログインページ
-    provider: 'cognito-managed',
-    // Cognitoマネージドページ URL
-    cognitoLoginUrl: process.env.VUE_APP_COGNITO_LOGIN_URL,
-    cognitoSignupUrl: process.env.VUE_APP_COGNITO_SIGNUP_URL,
-    // 認証状態の確認間隔（ミリ秒）
-    statusCheckInterval: 300000, // 5分
     // 認証が必要なルート
     protectedRoutes: ['/create', '/edit', '/storage'],
     // 認証後のデフォルトリダイレクト先
