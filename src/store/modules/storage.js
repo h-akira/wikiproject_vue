@@ -44,7 +44,7 @@ const actions = {
   },
 
   // ファイルアップロード
-  async uploadFile({ commit }, { fileId, fileData }) {
+  async uploadFile(_, { fileData }) {
     try {
       const response = await axios.post(config.api.endpoints.storage.upload, fileData)
       return { success: true, data: response.data }
@@ -57,7 +57,7 @@ const actions = {
   },
 
   // ファイル詳細取得
-  async fetchFileDetail({ commit }, fileId) {
+  async fetchFileDetail(_, fileId) {
     try {
       const url = getEndpointURL(config.api.endpoints.storage.fileDetail, { fileId })
       const response = await axios.get(url)
@@ -71,7 +71,7 @@ const actions = {
   },
 
   // ファイル削除
-  async deleteFile({ commit }, fileId) {
+  async deleteFile(_, fileId) {
     try {
       const url = getEndpointURL(config.api.endpoints.storage.fileDetail, { fileId })
       await axios.delete(url)
@@ -85,29 +85,27 @@ const actions = {
   },
 
   // 複数ファイルアップロード（プログレス付き）
-  async uploadFiles({ commit }, { files, path, onProgress }) {
-    const promises = files.map((file, index) => {
-      return new Promise(async (resolve, reject) => {
-        try {
-          const formData = new FormData()
-          formData.append('file', file)
-          formData.append('path', path)
-          
-          const config = {
-            onUploadProgress: (progressEvent) => {
-              const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total)
-              if (onProgress) {
-                onProgress(index, progress)
-              }
+  async uploadFiles(_, { files, path, onProgress }) {
+    const promises = files.map(async (file, index) => {
+      try {
+        const formData = new FormData()
+        formData.append('file', file)
+        formData.append('path', path)
+        
+        const axiosConfig = {
+          onUploadProgress: (progressEvent) => {
+            const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total)
+            if (onProgress) {
+              onProgress(index, progress)
             }
           }
-          
-          const response = await axios.post(config.api.endpoints.storage.upload, formData, config)
-          resolve(response.data)
-        } catch (error) {
-          reject(error)
         }
-      })
+        
+        const response = await axios.post(config.api.endpoints.storage.upload, formData, axiosConfig)
+        return response.data
+      } catch (error) {
+        throw error
+      }
     })
     
     return Promise.all(promises)

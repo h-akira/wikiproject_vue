@@ -42,7 +42,7 @@ export default {
     },
 
     // 認証コードをトークンに交換
-    async exchangeCodeForToken({ commit }, code) {
+    async exchangeCodeForToken(_, code) {
       try {
         const response = await axios.post(config.api.endpoints.auth.tokenExchange, { code })
         
