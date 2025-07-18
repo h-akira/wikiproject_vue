@@ -2,14 +2,14 @@
 export const config = {
   // アプリケーション基本設定
   app: {
-    name: process.env.VUE_APP_NAME || 'WikiProject',
+    name: 'WikiProject2',
     version: '1.0.0',
     description: 'Modern Wiki Application with Cognito Authentication'
   },
 
   // API設定
   api: {
-    baseURL: process.env.VUE_APP_API_BASE_URL || 'https://wiki2.h-akira.net',
+    baseURL: '', // CloudFrontで同一ドメイン配信のため相対パス
     timeout: 10000,
     withCredentials: true, // Cognitoクッキー認証のため
     endpoints: {
@@ -41,6 +41,9 @@ export const config = {
   auth: {
     // 認証方式: Cognitoマネージドログインページ
     provider: 'cognito-managed',
+    // Cognitoマネージドページ URL
+    cognitoLoginUrl: process.env.VUE_APP_COGNITO_LOGIN_URL,
+    cognitoSignupUrl: process.env.VUE_APP_COGNITO_SIGNUP_URL,
     // 認証状態の確認間隔（ミリ秒）
     statusCheckInterval: 300000, // 5分
     // 認証が必要なルート

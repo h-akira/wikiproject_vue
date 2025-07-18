@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { config } from '../../config'
+import { config } from '@/config.js'
 
 export default {
   namespaced: true,
@@ -21,15 +21,22 @@ export default {
     // Cognitoマネージドログインページの認証URLs取得
     async getAuthUrls() {
       try {
-        const response = await axios.get(config.api.endpoints.auth.urls)
+        // 環境変数から直接Cognito URLを取得
+        if (!config.auth.cognitoLoginUrl || !config.auth.cognitoSignupUrl) {
+          throw new Error('Cognito URL設定が不完全です')
+        }
+        
         return { 
           success: true, 
-          data: response.data 
+          data: {
+            login_url: config.auth.cognitoLoginUrl,
+            signup_url: config.auth.cognitoSignupUrl
+          }
         }
       } catch (error) {
         return { 
           success: false, 
-          message: error.response?.data?.message || '認証URLの取得に失敗しました' 
+          message: error.message || '認証URLの取得に失敗しました' 
         }
       }
     },
@@ -79,21 +86,17 @@ export default {
     async logout({ commit }) {
       try {
         await axios.post(config.api.endpoints.auth.logout)
-      } catch (error) {
-        console.error('Logout error:', error)
-      } finally {
         commit('LOGOUT')
+        return { success: true }
+      } catch (error) {
+        // ログアウトは失敗してもローカル状態をクリア
+        commit('LOGOUT')
+        return { success: false, message: 'ログアウト処理でエラーが発生しました' }
       }
-    },
-
-    // 初期化時の認証チェック
-    async checkAuth({ dispatch }) {
-      await dispatch('checkAuthStatus')
     }
   },
   getters: {
     isAuthenticated: state => state.isAuthenticated,
-    currentUser: state => state.user,
-    username: state => state.user?.['cognito:username'] || null
+    user: state => state.user
   }
 }

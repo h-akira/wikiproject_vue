@@ -7,10 +7,16 @@
             <div class="card-content">
               <h1 class="title has-text-centered">アカウント作成</h1>
               
-              <div class="has-text-centered">
+              <div class="has-text-centered" v-if="loading">
                 <p class="mb-4">
-                  アカウント作成は Cognito マネージドページで行います。<br>
-                  ログインページにリダイレクトします。
+                  Cognito サインアップページに移動しています...
+                </p>
+                <div class="loader"></div>
+              </div>
+              
+              <div class="has-text-centered" v-if="error">
+                <p class="mb-4 has-text-danger">
+                  {{ error }}
                 </p>
                 
                 <div class="field">
@@ -36,13 +42,38 @@
 </template>
 
 <script>
+import { mapActions } from 'vuex'
+
 export default {
   name: 'SignupPage',
-  mounted() {
-    // 自動的にログインページにリダイレクト
-    setTimeout(() => {
-      this.$router.push('/login')
-    }, 2000)
+  data() {
+    return {
+      loading: true,
+      error: null
+    }
+  },
+  async mounted() {
+    await this.redirectToSignup()
+  },
+  methods: {
+    ...mapActions('auth', ['getAuthUrls']),
+    
+    async redirectToSignup() {
+      try {
+        const result = await this.getAuthUrls()
+        
+        if (result.success && result.data.signup_url) {
+          // Cognito サインアップページにリダイレクト
+          window.location.href = result.data.signup_url
+        } else {
+          this.error = 'サインアップページの取得に失敗しました'
+          this.loading = false
+        }
+      } catch (error) {
+        this.error = 'エラーが発生しました。ログインページからお試しください。'
+        this.loading = false
+      }
+    }
   }
 }
 </script>
@@ -66,5 +97,20 @@ export default {
 
 .button .icon {
   margin-right: 0.5rem;
+}
+
+.loader {
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #3498db;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  animation: spin 2s linear infinite;
+  margin: 0 auto;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 </style>
