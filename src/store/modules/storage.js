@@ -87,25 +87,21 @@ const actions = {
   // 複数ファイルアップロード（プログレス付き）
   async uploadFiles(_, { files, path, onProgress }) {
     const promises = files.map(async (file, index) => {
-      try {
-        const formData = new FormData()
-        formData.append('file', file)
-        formData.append('path', path)
-        
-        const axiosConfig = {
-          onUploadProgress: (progressEvent) => {
-            const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total)
-            if (onProgress) {
-              onProgress(index, progress)
-            }
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('path', path)
+      
+      const axiosConfig = {
+        onUploadProgress: (progressEvent) => {
+          const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total)
+          if (onProgress) {
+            onProgress(index, progress)
           }
         }
-        
-        const response = await axios.post(config.api.endpoints.storage.upload, formData, axiosConfig)
-        return response.data
-      } catch (error) {
-        throw error
       }
+      
+      const response = await axios.post(config.api.endpoints.storage.upload, formData, axiosConfig)
+      return response.data
     })
     
     return Promise.all(promises)
