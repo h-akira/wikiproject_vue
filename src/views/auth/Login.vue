@@ -160,18 +160,25 @@ export default {
       this.processing = true
       this.errorMessage = ''
 
+      console.log('🔍 認証コード処理開始:', code)
+
       try {
         const result = await this.exchangeCodeForToken(code)
         
+        console.log('🔍 トークン交換結果:', result)
+        
         if (result.success) {
           // URLをクリーンアップしてからホームにリダイレクト
+          console.log('✅ 認証成功、ホームにリダイレクト')
           this.cleanUrl()
           this.$router.push('/')
         } else {
+          console.log('❌ 認証失敗:', result.message)
           this.errorMessage = result.message
           this.cleanUrl()
         }
       } catch (error) {
+        console.error('❌ 認証処理エラー:', error)
         this.errorMessage = '認証処理に失敗しました'
         this.cleanUrl()
       } finally {
