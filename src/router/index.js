@@ -71,6 +71,16 @@ const router = createRouter({
 
 // Navigation guard
 router.beforeEach(async (to, from, next) => {
+  // 認証コードがある場合は処理をスキップ（コンポーネントで処理）
+  const urlParams = new URLSearchParams(to.fullPath.split('?')[1] || '')
+  const authCode = urlParams.get('code')
+  
+  if (authCode) {
+    console.log('🔍 Router: Auth code detected, allowing navigation')
+    next()
+    return
+  }
+
   // 認証が必要なページかチェック
   if (to.matched.some(record => record.meta.requiresAuth)) {
     // 認証状態をチェック（必要に応じてサーバーに確認）

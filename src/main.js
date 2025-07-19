@@ -45,7 +45,7 @@ if (!authCode) {
   console.log('🔍 App startup - checking auth status')
   store.dispatch('auth/checkAuthStatus')
 } else {
-  console.log('🔍 App startup - auth code detected, skipping initial auth check')
+  console.log('🔍 App startup - auth code detected, component will handle auth')
 }
 
 app.use(store)

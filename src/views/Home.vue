@@ -87,17 +87,90 @@ import { mapState, mapGetters, mapActions } from 'vuex'
 
 export default {
   name: 'HomePage',
+  data() {
+    return {
+      processing: false
+    }
+  },
   computed: {
     ...mapState(['loading', 'error']),
     ...mapGetters('wiki', ['treeData']),
-    ...mapState('wiki', ['pages'])
+    ...mapState('wiki', ['pages']),
+    ...mapGetters('auth', ['isAuthenticated'])
   },
   async mounted() {
-    await this.loadData()
+    // 認証コード処理とデータロード
+    await this.handleAuthCodeAndLoadData()
   },
   methods: {
     ...mapActions('wiki', ['fetchPages']),
     ...mapActions(['setLoading', 'setError']),
+    ...mapActions('auth', ['exchangeCodeForToken', 'checkAuthStatus']),
+
+    async handleAuthCodeAndLoadData() {
+      // URLパラメータから認証コードをチェック（最優先）
+      const urlParams = new URLSearchParams(window.location.search)
+      const authCode = urlParams.get('code')
+      const error = urlParams.get('error')
+
+      console.log('🔍 Home.vue mounted - URL params:', { authCode, error })
+      console.log('🔍 Current auth status:', this.isAuthenticated)
+
+      if (error) {
+        console.log('❌ 認証エラー検出:', error)
+        this.cleanUrl()
+        // エラーがあってもデータロードは続行
+        await this.loadData()
+        return
+      }
+
+      if (authCode) {
+        console.log('🔑 認証コード検出:', authCode)
+        console.log('🔄 トークン交換を開始')
+        
+        // 認証コードがある場合は処理
+        await this.processAuthCode(authCode)
+        // 認証後にデータロード
+        await this.loadData()
+        return
+      }
+
+      // 通常のデータロード
+      console.log('🔍 通常のデータロード実行')
+      await this.loadData()
+    },
+
+    async processAuthCode(code) {
+      this.processing = true
+
+      // 古いクッキーをクリアするため、まず既存の認証状態をクリア
+      console.log('🧹 古い認証状態をクリア')
+      this.$store.commit('auth/LOGOUT')
+
+      try {
+        const result = await this.exchangeCodeForToken(code)
+        
+        if (result.success) {
+          console.log('✅ 認証成功！URLをクリーンアップ')
+          // URLから認証コードを削除（履歴を汚さないようにreplace）
+          this.cleanUrl()
+        } else {
+          console.error('❌ 認証失敗:', result.error)
+          this.cleanUrl()
+        }
+      } catch (error) {
+        console.error('💥 認証処理エラー:', error)
+        this.cleanUrl()
+      } finally {
+        this.processing = false
+      }
+    },
+
+    cleanUrl() {
+      // URLパラメータを削除してクリーンなURLにする
+      window.history.replaceState({}, '', window.location.pathname)
+    },
+
     async loadData() {
       this.setLoading(true)
       
