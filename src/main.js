@@ -36,8 +36,17 @@ axios.interceptors.response.use(
   }
 )
 
-// Check authentication status on app start
-store.dispatch('auth/checkAuthStatus')
+// Check authentication status on app start (unless auth code present)
+const urlParams = new URLSearchParams(window.location.search)
+const authCode = urlParams.get('code')
+
+if (!authCode) {
+  // 認証コードがない場合のみ認証状態をチェック
+  console.log('🔍 App startup - checking auth status')
+  store.dispatch('auth/checkAuthStatus')
+} else {
+  console.log('🔍 App startup - auth code detected, skipping initial auth check')
+}
 
 app.use(store)
 app.use(router)

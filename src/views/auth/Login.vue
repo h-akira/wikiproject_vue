@@ -77,29 +77,40 @@ export default {
     }
   },
   async mounted() {
-    // 既に認証済みの場合はホームにリダイレクト
-    if (this.isAuthenticated) {
-      this.$router.push('/')
-      return
-    }
-
-    // URLパラメータから認証コードをチェック
+    // URLパラメータから認証コードをチェック（最優先）
     const urlParams = new URLSearchParams(window.location.search)
     const authCode = urlParams.get('code')
     const error = urlParams.get('error')
 
+    console.log('🔍 Login.vue mounted - URL params:', { authCode, error })
+    console.log('🔍 Current auth status:', this.isAuthenticated)
+
     if (error) {
+      console.log('❌ 認証エラー検出:', error)
       this.errorMessage = '認証がキャンセルされました'
       this.cleanUrl()
-    } else if (authCode && !this.isAuthenticated) {
+      return
+    }
+
+    if (authCode) {
       console.log('🔑 認証コード検出:', authCode)
       console.log('🔄 トークン交換を開始')
       
+      // 認証コードがある場合は既存の認証状態に関係なく処理
       await this.processAuthCode(authCode)
-    } else {
-      // 通常の認証状態チェック
-      await this.checkAuthStatus()
+      return
     }
+
+    // 既に認証済みの場合はホームにリダイレクト
+    if (this.isAuthenticated) {
+      console.log('✅ 既に認証済み、ホームにリダイレクト')
+      this.$router.push('/')
+      return
+    }
+
+    // 通常の認証状態チェック
+    console.log('🔍 通常の認証状態チェック実行')
+    await this.checkAuthStatus()
   },
   methods: {
     ...mapActions('auth', ['exchangeCodeForToken', 'checkAuthStatus', 'redirectToLogin', 'redirectToSignup']),
@@ -115,6 +126,10 @@ export default {
     async processAuthCode(code) {
       this.processing = true
       this.errorMessage = ''
+
+      // 古いクッキーをクリアするため、まず既存の認証状態をクリア
+      console.log('🧹 古い認証状態をクリア')
+      this.$store.commit('auth/LOGOUT')
 
       try {
         const result = await this.exchangeCodeForToken(code)
