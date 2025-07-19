@@ -98,6 +98,17 @@ export default {
     ...mapState('wiki', ['pages']),
     ...mapGetters('auth', ['isAuthenticated'])
   },
+  watch: {
+    // 認証状態が変化したときにデータをリロード
+    isAuthenticated(newVal, oldVal) {
+      console.log('🔍 認証状態変化:', { oldVal, newVal })
+      if (newVal && !oldVal) {
+        // 未認証から認証済みに変化した場合
+        console.log('✅ 認証完了 - データをリロード')
+        this.loadData()
+      }
+    }
+  },
   async mounted() {
     // 認証コード処理とデータロード
     await this.handleAuthCodeAndLoadData()
@@ -128,10 +139,8 @@ export default {
         console.log('🔑 認証コード検出:', authCode)
         console.log('🔄 トークン交換を開始')
         
-        // 認証コードがある場合は処理
+        // 認証コードがある場合は処理のみ（データロードはwatchが担当）
         await this.processAuthCode(authCode)
-        // 認証後にデータロード
-        await this.loadData()
         return
       }
 

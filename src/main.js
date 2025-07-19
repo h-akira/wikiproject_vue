@@ -45,7 +45,9 @@ if (!authCode) {
   console.log('🔍 App startup - checking auth status')
   store.dispatch('auth/checkAuthStatus')
 } else {
-  console.log('🔍 App startup - auth code detected, component will handle auth')
+  console.log('🔍 App startup - auth code detected, clearing auth state')
+  // 認証コードがある場合は状態をクリアして、コンポーネントに処理を委ねる
+  store.commit('auth/LOGOUT')
 }
 
 app.use(store)
